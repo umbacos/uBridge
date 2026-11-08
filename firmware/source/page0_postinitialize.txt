@@ -1,0 +1,4 @@
+cls 2145
+xstr 20,55,440,32,0,1407,2145,0,1,1,"Home Assistant"
+xstr 20,105,440,30,0,65535,2145,0,1,1,"TJC Serial HMI"
+xstr 20,155,440,30,0,38066,2145,0,1,1,"Waiting for Home Assistant..."

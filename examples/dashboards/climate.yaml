@@ -1,0 +1,14 @@
+title: Climate
+views:
+  - title: Climate
+    path: climate
+    cards:
+      - type: thermostat
+        entity: climate.living_room
+        name: Heating
+      - type: tile
+        entity: cover.blinds
+        name: Blinds
+      - type: entity
+        entity: sensor.outdoor_temperature
+        name: Outside

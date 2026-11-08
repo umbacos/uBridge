@@ -1,0 +1,42 @@
+{
+  "native_icon_count": 7448,
+  "physical_timing_measured": false,
+  "vector": {
+    "commands": 161,
+    "serial_bytes": 4415,
+    "stop_and_wait_round_trips": 161,
+    "bounded_batch_round_trips": 21
+  },
+  "native": {
+    "commands": 41,
+    "serial_bytes": 1538,
+    "stop_and_wait_round_trips": 41,
+    "bounded_batch_round_trips": 7
+  },
+  "per_icon_commands": {
+    "weather-partly-cloudy": {
+      "vector": 34,
+      "native": 1
+    },
+    "lightbulb-outline": {
+      "vector": 20,
+      "native": 1
+    },
+    "thermometer": {
+      "vector": 9,
+      "native": 1
+    },
+    "water-percent": {
+      "vector": 24,
+      "native": 1
+    },
+    "home": {
+      "vector": 12,
+      "native": 1
+    },
+    "power-socket-eu": {
+      "vector": 24,
+      "native": 1
+    }
+  }
+}

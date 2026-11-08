@@ -1,0 +1,20 @@
+title: Home
+views:
+  - title: Home
+    path: home
+    cards:
+      - type: entities
+        title: Home
+        entities:
+          - entity: light.living_room
+            name: Living room
+          - entity: switch.desk
+            name: Desk
+          - entity: sensor.room_temperature
+            name: Temperature
+          - entity: sensor.room_humidity
+            name: Humidity
+          - entity: scene.evening
+            name: Evening scene
+          - entity: input_boolean.guest_mode
+            name: Guest mode

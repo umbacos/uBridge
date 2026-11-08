@@ -1,0 +1,44 @@
+# Merge these keys into /config/configuration.yaml; do not duplicate existing keys.
+# Alternatively add the TJC Serial HMI integration through Settings > Devices & services.
+tjc_hmi:
+  port: /dev/serial/by-id/usb-FTDI_YOUR_ADAPTER-if00-port0
+  baudrate: 115200
+  dashboards: [home-panel, climate-panel, controls-panel, charts-panel, clock-weather-panel]
+  idle_mode: dim
+  idle_dim_seconds: 60
+  idle_dim_percent: 50
+  idle_off_seconds: 60
+  # Alternative: idle_mode: dashboard, idle_dashboard: charts-panel, idle_brightness: 25
+
+lovelace:
+  dashboards:
+    home-panel:
+      mode: yaml
+      title: Home
+      icon: mdi:home-outline
+      show_in_sidebar: true
+      filename: dashboards/home.yaml
+    climate-panel:
+      mode: yaml
+      title: Climate
+      icon: mdi:thermostat
+      show_in_sidebar: true
+      filename: dashboards/climate.yaml
+    controls-panel:
+      mode: yaml
+      title: Controls
+      icon: mdi:tune
+      show_in_sidebar: true
+      filename: dashboards/controls.yaml
+    charts-panel:
+      mode: yaml
+      title: Charts
+      icon: mdi:chart-areaspline
+      show_in_sidebar: true
+      filename: dashboards/charts.yaml
+    clock-weather-panel:
+      mode: yaml
+      title: Clock and weather
+      icon: mdi:weather-partly-cloudy
+      show_in_sidebar: true
+      filename: dashboards/clock-weather.yaml

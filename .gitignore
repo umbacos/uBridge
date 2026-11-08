@@ -1,0 +1,12 @@
+.venv/
+.cache/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+docs/vendor-help-extract.txt
+firmware/*.bak
+dist/
+build/
+*.egg-info/
+*.spec

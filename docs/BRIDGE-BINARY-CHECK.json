@@ -1,0 +1,20 @@
+{
+  "verified_at_utc": "2026-11-08T20:56:57.956275+00:00",
+  "executable": "uBridge.exe",
+  "version": "0.7.2",
+  "websocket_authentication": true,
+  "serial_handshake": true,
+  "touch_service_state_redraw": true,
+  "reconnect_without_replay": true,
+  "incremental_update_without_cls": true,
+  "idle_dim_off_touch_wake": true,
+  "mdi_badges_history_statistics": true,
+  "native_icon_signature_handshake": true,
+  "native_xpic_commands": true,
+  "combined_clock_weather_two_entities": true,
+  "weather_forecast_response_api": true,
+  "clock_ticks_without_page_refresh": true,
+  "idle_navigation_hidden": true,
+  "endpoints": "isolated loopback HA and UART wire simulators",
+  "physical_hardware_tested": false
+}

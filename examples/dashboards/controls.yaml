@@ -1,0 +1,21 @@
+title: Controls
+views:
+  - title: Controls
+    path: controls
+    cards:
+      - type: entities
+        entities:
+          - entity: input_number.target_level
+            name: Target level
+          - entity: input_select.home_mode
+            name: Home mode
+          - entity: media_player.living_room
+            name: Music
+      - type: button
+        entity: script.goodnight
+        name: Good night
+        tap_action:
+          action: perform-action
+          perform_action: script.turn_on
+          confirmation:
+            text: Run good night?

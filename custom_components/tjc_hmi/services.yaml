@@ -1,0 +1,43 @@
+reload:
+  name: Reload dashboards
+  description: Refresh all HMI dashboard configurations and redraw connected panels.
+show_page:
+  name: Show page
+  description: Navigate all panels to a dashboard title or dashboard/view path.
+  fields:
+    page:
+      name: Page
+      required: true
+      example: Climate
+      selector:
+        text:
+set_brightness:
+  name: Set brightness
+  description: Set the backlight of connected displays (does not write flash).
+  fields:
+    brightness:
+      name: Brightness
+      required: true
+      example: 80
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: '%'
+
+flash_firmware:
+  name: Flash display firmware
+  description: Upload a local TFT to one configured display. Stops serial rendering during upload and reconnects afterwards. Keep the panel powered.
+  fields:
+    entry_id:
+      name: Display integration
+      required: true
+      selector:
+        config_entry:
+          integration: tjc_hmi
+    firmware_path:
+      name: Absolute TFT path on the HA host
+      required: true
+      example: /config/tjc_hmi.tft
+      selector:
+        text:

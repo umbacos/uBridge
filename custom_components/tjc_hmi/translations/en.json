@@ -1,0 +1,57 @@
+{
+  "title": "TJC Serial HMI",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect your TJC X2 panel",
+        "description": "Select existing Home Assistant dashboards to display. Their titles can be anything. Dashboard idle mode uses an absolute backlight percentage and returns to the previous page on touch.",
+        "data": {
+          "port": "Serial device path",
+          "baudrate": "Baud rate",
+          "brightness": "Backlight (%)",
+          "idle_enabled": "Enable idle behavior",
+          "idle_dim_seconds": "Idle after (seconds)",
+          "idle_dim_percent": "Dimmed brightness (% of backlight)",
+          "idle_off_seconds": "Then turn off after (seconds)",
+          "dashboards": "Dashboards to display",
+          "idle_mode": "Idle behavior",
+          "idle_dashboard": "Dashboard to show when idle",
+          "idle_brightness": "Idle dashboard brightness (%)"
+        }
+      }
+    },
+    "error": {
+      "invalid_settings": "Enter a serial port, select at least one available dashboard and, for dashboard idle mode, an idle dashboard."
+    },
+    "abort": {
+      "already_configured": "This serial port is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Panel settings",
+        "data": {
+          "port": "Serial device path",
+          "baudrate": "Baud rate",
+          "brightness": "Backlight (%)",
+          "idle_enabled": "Enable idle behavior",
+          "idle_dim_seconds": "Idle after (seconds)",
+          "idle_dim_percent": "Dimmed brightness (% of backlight)",
+          "idle_off_seconds": "Then turn off after (seconds)",
+          "dashboards": "Dashboards to display",
+          "idle_mode": "Idle behavior",
+          "idle_dashboard": "Dashboard to show when idle",
+          "idle_brightness": "Idle dashboard brightness (%)"
+        },
+        "description": "Select existing Home Assistant dashboards to display. Their titles can be anything. Dashboard idle mode uses an absolute backlight percentage and returns to the previous page on touch."
+      }
+    },
+    "error": {
+      "invalid_settings": "Enter a serial port, select at least one available dashboard and, for dashboard idle mode, an idle dashboard."
+    },
+    "abort": {
+      "already_configured": "This serial port is already configured."
+    }
+  }
+}

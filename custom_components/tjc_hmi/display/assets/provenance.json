@@ -1,0 +1,10 @@
+{
+  "version": "7.4.47",
+  "source": "https://raw.githubusercontent.com/Templarian/MaterialDesign-Webfont/v7.4.47/",
+  "sha256": {
+    "css/materialdesignicons.css": "cd66a937a12b4368031fb980d57346803260c6cfa5e737bbad526aed2c5cda0e",
+    "fonts/materialdesignicons-webfont.ttf": "61e8aba5a4e981fe22cf7c8e8bcdbea00476e75c62c37f01bf7ee33361d68428",
+    "LICENSE": "3bae6305bcaa6d10219b999f65c342034c2d40b1c0e8567fa08605e73ccba829"
+  },
+  "icons": 7448
+}

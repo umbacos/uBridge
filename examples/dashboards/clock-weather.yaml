@@ -1,0 +1,23 @@
+title: Clock and weather
+views:
+  - title: Home
+    path: home
+    cards:
+      - type: clock
+        title: Home time
+        clock_size: large
+        time_format: "24"
+        show_seconds: true
+        # Optional override; otherwise use HA's configured time zone.
+        # time_zone: Europe/Rome
+      - type: weather-forecast
+        entity: weather.forecast_home
+        name: Home weather
+        forecast_type: daily
+        round_temperature: true
+      - type: tile
+        entity: light.living_room
+        name: Living room
+      - type: tile
+        entity: sensor.room_temperature
+        name: Temperature

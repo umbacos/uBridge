@@ -1,0 +1,33 @@
+{
+  "model": "TJC4827X243_011",
+  "series": "X2",
+  "resolution": [
+    480,
+    272
+  ],
+  "orientation": "landscape 0 degrees",
+  "compiler": "USART HMI 1.68.2",
+  "compiled_date": "2026-11-07",
+  "errors": 0,
+  "warnings": 0,
+  "size": 4589300,
+  "sha256": "f62ccc5d579669b798d491b0d76c6c2a82a9de364617ea9998f44872099cfa60",
+  "baudrate": 115200,
+  "protocol_signature": 1414152961,
+  "physical_hardware_tested": false,
+  "hardware_test_scope": [],
+  "physical_touch_tested": false,
+  "physical_home_assistant_connection_tested": false,
+  "resource_signature": 1606679925,
+  "native_icon_count": 7448,
+  "native_picture_count": 170,
+  "native_picture_bytes": 3566300,
+  "simulator_native_icons_tested": true,
+  "simulator_native_picture_ids": [
+    0,
+    34,
+    68,
+    109,
+    169
+  ]
+}

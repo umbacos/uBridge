@@ -1,0 +1,24 @@
+{
+  "verified_at_utc": "2026-11-06T22:37:11.387376+00:00",
+  "port": "COM4",
+  "adapter": "FTDI USB-to-serial",
+  "reported_model": "TJC4827X243_011C",
+  "firmware": "firmware/tjc_hmi.tft",
+  "size": 1050356,
+  "sha256": "a38e7eb8de3dd8f83152783ec0c39823f2f38af36985384986c7b30e22e89c63",
+  "previous_baud": 921600,
+  "upload_baud": 921600,
+  "all_blocks_acknowledged": true,
+  "post_reboot": {
+    "baud": 115200,
+    "sys2": 1414152961,
+    "bkcmd": 3,
+    "sendxy": 1,
+    "thsp": 0,
+    "ussp": 0,
+    "dim": 80,
+    "page": 0
+  },
+  "physical_touch_tested": false,
+  "home_assistant_host_connected": false
+}

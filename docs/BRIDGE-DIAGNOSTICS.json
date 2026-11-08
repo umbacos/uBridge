@@ -1,0 +1,11 @@
+{
+  "version": "0.3.0",
+  "platform": "Windows",
+  "imports": {
+    "PySide6.QtCore": "ok",
+    "PySide6.QtWidgets": "ok",
+    "aiohttp": "ok",
+    "serial_asyncio_fast": "ok"
+  },
+  "credential_backend": "WinVaultKeyring"
+}

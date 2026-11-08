@@ -1,0 +1,79 @@
+# Replace these sample entity IDs with yours. No extra frontend resource is needed
+# for gauge/history/statistics cards. custom:bar-card is optional in HA itself.
+views:
+  - title: Climate
+    path: climate
+    badges:
+      - type: entity
+        entity: sensor.room_temperature
+        icon: mdi:thermometer
+      - type: entity
+        entity: sensor.room_humidity
+        icon: mdi:water-percent
+      - type: entity
+        entity: switch.desk
+        icon: mdi:power-socket-eu
+        tap_action:
+          action: toggle
+    cards:
+      - type: gauge
+        entity: sensor.room_temperature
+        name: Temperature
+        icon: mdi:thermometer
+        min: 0
+        max: 40
+        needle: true
+        severity:
+          green: 0
+          yellow: 25
+          red: 32
+      - type: custom:bar-card
+        entity: sensor.room_humidity
+        name: Humidity
+        icon: mdi:water-percent
+        min: 0
+        max: 100
+      - type: tile
+        entity: light.living_room
+        name: Living room
+        icon: mdi:ceiling-light
+      - type: tile
+        entity: switch.desk
+        name: Desk
+        icon: mdi:desk-lamp
+  - title: History
+    path: history
+    badges:
+      - sensor.room_temperature
+      - sensor.outdoor_temperature
+    cards:
+      - type: history-graph
+        title: Temperature
+        hours_to_show: 12
+        entities:
+          - sensor.room_temperature
+          - sensor.outdoor_temperature
+      - type: tile
+        entity: sensor.room_temperature
+        name: Indoor
+        icon: mdi:home-thermometer
+      - type: tile
+        entity: sensor.outdoor_temperature
+        name: Outdoor
+        icon: mdi:thermometer
+  - title: Statistics
+    path: statistics
+    cards:
+      - type: statistics-graph
+        title: Hourly temperature
+        entities:
+          - sensor.room_temperature
+        chart_type: bar
+        period: hour
+        stat_types:
+          - mean
+        hours_to_show: 24
+      - type: tile
+        entity: sensor.room_temperature
+        name: Now
+        icon: mdi:thermometer

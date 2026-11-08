@@ -47,15 +47,22 @@ def main(argv=None):
     parser.add_argument(
         "--diagnostics", type=Path, help="Write offline startup diagnostics and exit"
     )
-    parser.add_argument("--version", action="version", version="uBridge 0.7.2")
+    parser.add_argument("--version", action="version", version="uBridge 0.8.0")
     args = parser.parse_args(argv)
     path = args.config.expanduser().resolve()
     redaction = configure_logging(path)
     if args.diagnostics:
         import platform
 
-        report = {"version": "0.7.2", "platform": platform.system(), "imports": {}}
-        for name in ("PySide6.QtCore", "PySide6.QtWidgets", "aiohttp", "serial_asyncio_fast"):
+        report = {"version": "0.8.0", "platform": platform.system(), "imports": {}}
+        for name in (
+            "PySide6.QtCore",
+            "PySide6.QtWidgets",
+            "aiohttp",
+            "serial_asyncio_fast",
+            "tjc_bridge.ui",
+            "tjc_bridge.releases",
+        ):
             try:
                 importlib.import_module(name)
                 report["imports"][name] = "ok"

@@ -1,7 +1,7 @@
 {
   "domain": "tjc_hmi",
   "name": "TJC Serial HMI",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "config_flow": true,
   "dependencies": ["lovelace"],
   "codeowners": [],

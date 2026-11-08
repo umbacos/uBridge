@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import sys
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -13,6 +14,8 @@ from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QFormLayout,
     QFrame,
@@ -27,6 +30,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSpinBox,
     QSystemTrayIcon,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -35,6 +39,15 @@ from tjc_display.const import BAUD_RATES
 
 from . import __version__, autostart
 from .config import CredentialStore, Settings, load_settings, save_settings
+from .releases import (
+    DesktopState,
+    Release,
+    download_firmware,
+    fetch,
+    installation_marker,
+    latest_release,
+    newer,
+)
 from .runtime import Bridge, test_connection
 
 _LOGGER = logging.getLogger(__name__)
@@ -147,10 +160,68 @@ class FirmwareWorker(QThread):
             self.result.emit(True, "Firmware uploaded. Reconnect after the display reboots.")
 
 
+class NetworkWorker(QThread):
+    result = Signal(bool, object)
+    progress = Signal(str)
+
+    def __init__(self, operation):
+        super().__init__()
+        self.operation = operation
+
+    def run(self):
+        try:
+            value = self.operation(self)
+        except Exception as err:
+            self.result.emit(False, str(err))
+        else:
+            self.result.emit(True, value)
+
+    def stop(self):
+        self.requestInterruption()
+
+
+def firmware_target_dialog(window):
+    dialog = QDialog(window)
+    dialog.setWindowTitle("Download and flash TJC firmware")
+    layout = QVBoxLayout(dialog)
+    message = QLabel(
+        "Download the recommended firmware for TJC4827X243_011 (X2). "
+        "Flashing replaces the display program. Keep the display powered until upload finishes."
+    )
+    message.setWordWrap(True)
+    layout.addWidget(message)
+    form = QFormLayout()
+    serial = QComboBox()
+    serial.setEditable(True)
+    serial.addItems([port.device for port in comports()])
+    serial.setCurrentText(window.serial.currentText())
+    baud = QComboBox()
+    baud.addItems([str(rate) for rate in BAUD_RATES])
+    baud.setCurrentText(window.baud.currentText())
+    form.addRow("Display serial port", serial)
+    form.addRow("Baud rate", baud)
+    layout.addLayout(form)
+    buttons = QDialogButtonBox(
+        QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+    )
+    confirm = buttons.button(QDialogButtonBox.StandardButton.Ok)
+    confirm.setText("Download && flash")
+    confirm.setEnabled(bool(serial.currentText().strip()))
+    serial.currentTextChanged.connect(lambda value: confirm.setEnabled(bool(value.strip())))
+    buttons.accepted.connect(dialog.accept)
+    buttons.rejected.connect(dialog.reject)
+    layout.addWidget(buttons)
+    if dialog.exec() == QDialog.DialogCode.Accepted:
+        return serial.currentText().strip(), int(baud.currentText())
+    return None
+
+
 class ConfigurationWindow(QWidget):
     save_requested = Signal()
     test_requested = Signal()
     flash_requested = Signal()
+    download_flash_requested = Signal()
+    check_updates_requested = Signal()
 
     def __init__(self, *, tray_available=True):
         super().__init__()
@@ -159,21 +230,8 @@ class ConfigurationWindow(QWidget):
         self.setWindowIcon(bridge_icon())
         self.setMinimumWidth(600)
         self.resize(680, 750)
-        self.setStyleSheet(
-            "QWidget {font-family: 'Segoe UI', sans-serif; font-size: 13px;"
-            "background: #f5f8fc; color: #172b40;}"
-            "QLineEdit,QComboBox,QSpinBox {min-height: 29px; padding: 2px 7px;"
-            "background: white; border: 1px solid #c7d3df; border-radius: 4px;}"
-            "QPushButton {padding: 7px 14px; background: #e6eef6;"
-            "border: 1px solid #c7d3df; border-radius: 4px;}"
-            "QLabel#title {font-size: 25px; font-weight: 600;}"
-            "QLabel#subtitle {color: #627287;}"
-            "QFrame#statusCard {background: #eaf3f8; border-radius: 9px;}"
-            "QFrame#statusCard QLabel {background: transparent;}"
-            "QLabel#feedback {color: #426179;}"
-            "QPushButton#connect {background: #087fa1; color: white;"
-            "border: 0; border-radius: 4px;}"
-        )
+        self._apply_theme()
+        QApplication.instance().paletteChanged.connect(self._apply_theme)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(26, 22, 26, 22)
         layout.setSpacing(13)
@@ -194,9 +252,24 @@ class ConfigurationWindow(QWidget):
         card_layout.addWidget(self.connection_status)
         card_layout.addWidget(self.connection_detail)
         layout.addWidget(card)
-        form_widget = QWidget()
-        form = QFormLayout(form_widget)
-        form.setVerticalSpacing(12)
+        self.update_notice = QPushButton()
+        self.update_notice.setObjectName("updateNotice")
+        self.update_notice.hide()
+        layout.addWidget(self.update_notice)
+        self.tabs = QTabWidget()
+        self.forms = {}
+        for name in ("Home Assistant", "Screen", "Dashboards", "Application"):
+            content = QWidget()
+            form = QFormLayout(content)
+            form.setVerticalSpacing(12)
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setFrameShape(QFrame.Shape.NoFrame)
+            scroll.setWidget(content)
+            self.tabs.addTab(scroll, name)
+            self.forms[name] = form
+        layout.addWidget(self.tabs, 1)
+        form = self.forms["Home Assistant"]
         self.base_url = QLineEdit()
         self.base_url.setPlaceholderText("http://homeassistant.local:8123")
         form.addRow("Home Assistant address", self.base_url)
@@ -220,6 +293,7 @@ class ConfigurationWindow(QWidget):
         form.addRow("", token_hint)
         self.remember = QCheckBox("Remember token in the system credential store")
         form.addRow("", self.remember)
+        form = self.forms["Screen"]
         self.serial = QComboBox()
         self.serial.setEditable(True)
         self.serial.setMinimumContentsLength(16)
@@ -237,6 +311,7 @@ class ConfigurationWindow(QWidget):
         self.baud = QComboBox()
         self.baud.addItems([str(rate) for rate in BAUD_RATES])
         form.addRow("Baud rate", self.baud)
+        form = self.forms["Dashboards"]
         self.available_dashboard = QComboBox()
         self.available_dashboard.addItem("Loading available dashboards…", "")
         self.add_dashboard_button = QPushButton("Add")
@@ -263,6 +338,7 @@ class ConfigurationWindow(QWidget):
         )
         dashboard_hint.setWordWrap(True)
         form.addRow("", dashboard_hint)
+        form = self.forms["Screen"]
         self.brightness = QSpinBox()
         self.brightness.setRange(1, 100)
         self.brightness.setSuffix(" %")
@@ -299,6 +375,13 @@ class ConfigurationWindow(QWidget):
         )
         hint.setWordWrap(True)
         form.addRow("", hint)
+        self.flash_button = QPushButton("Flash local firmware…")
+        self.flash_button.clicked.connect(self.flash_requested.emit)
+        form.addRow("Firmware", self.flash_button)
+        self.download_flash_button = QPushButton("Download && flash recommended firmware…")
+        self.download_flash_button.clicked.connect(self.download_flash_requested.emit)
+        form.addRow("", self.download_flash_button)
+        form = self.forms["Home Assistant"]
         self.ca_file = QLineEdit()
         self.ca_file.setPlaceholderText("Optional — use system certificates by default")
         certificate = QPushButton("Browse…")
@@ -307,15 +390,31 @@ class ConfigurationWindow(QWidget):
         certificate_layout.addWidget(self.ca_file, 1)
         certificate_layout.addWidget(certificate)
         form.addRow("TLS CA certificate", certificate_layout)
+        form = self.forms["Application"]
         self.auto_connect = QCheckBox("Connect automatically when the bridge opens")
         self.auto_login = QCheckBox("Start at sign-in")
         form.addRow("", self.auto_connect)
         form.addRow("", self.auto_login)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setWidget(form_widget)
-        layout.addWidget(scroll, 1)
+        self.update_status = QLabel("GitHub releases are checked once a day.")
+        self.update_status.setWordWrap(True)
+        self.update_status.setTextFormat(Qt.TextFormat.PlainText)
+        form.addRow("Updates", self.update_status)
+        self.check_updates_button = QPushButton("Check for updates now")
+        self.check_updates_button.clicked.connect(self.check_updates_requested.emit)
+        form.addRow("", self.check_updates_button)
+        self._field_labels = {}
+        for tab_form in [self.forms["Screen"]]:
+            for control in (
+                self.idle_mode,
+                self.idle_dim_seconds,
+                self.idle_dim_percent,
+                self.idle_off_seconds,
+                self.idle_dashboard,
+                self.idle_brightness,
+            ):
+                label = tab_form.labelForField(control)
+                if label is not None:
+                    self._field_labels[control] = label
         self.feedback = QLabel(
             "Select dashboards from HA. The display must use this project's firmware."
         )
@@ -336,12 +435,30 @@ class ConfigurationWindow(QWidget):
         self.save_button.clicked.connect(self.save_requested.emit)
         buttons.addWidget(self.save_button)
         layout.addLayout(buttons)
-        self.flash_button = QPushButton("Flash display firmware…")
-        self.flash_button.clicked.connect(self.flash_requested.emit)
-        layout.addWidget(self.flash_button)
         version = QLabel(f"uBridge {__version__} · 480 × 272 · Serial ↔ API")
         version.setObjectName("subtitle")
         layout.addWidget(version)
+
+    def _apply_theme(self, *_):
+        self.setStyleSheet("""
+            QWidget {font-family: 'Segoe UI', sans-serif; font-size: 13px;}
+            QLineEdit,QComboBox,QSpinBox,QListWidget {min-height: 29px; padding: 2px 7px;
+                background: palette(base); color: palette(text);
+                border: 1px solid palette(mid); border-radius: 4px;}
+            QPushButton {padding: 7px 14px; background: palette(button);
+                color: palette(button-text); border: 1px solid palette(mid); border-radius: 4px;}
+            QLabel#title {font-size: 25px; font-weight: 600;}
+            QLabel#subtitle {color: palette(mid);}
+            QFrame#statusCard {background: palette(alternate-base); border-radius: 9px;}
+            QFrame#statusCard QLabel {background: transparent;}
+            QPushButton#connect {background: palette(highlight);
+                color: palette(highlighted-text); border: 0;}
+            QPushButton#updateNotice {border: 2px solid palette(highlight); text-align: left;}
+            QLineEdit:disabled,QComboBox:disabled,QSpinBox:disabled,QListWidget:disabled,
+            QPushButton:disabled,QPushButton#connect:disabled {
+                background: palette(window); color: palette(mid); border-color: palette(midlight);}
+            QLabel:disabled,QCheckBox:disabled {color: palette(mid);}
+        """)
 
     def selected_dashboards(self):
         return [
@@ -412,6 +529,8 @@ class ConfigurationWindow(QWidget):
         self.idle_off_seconds.setEnabled(enabled and not dashboard)
         self.idle_dashboard.setEnabled(enabled and dashboard)
         self.idle_brightness.setEnabled(enabled and dashboard)
+        for control, label in getattr(self, "_field_labels", {}).items():
+            label.setEnabled(control.isEnabled())
 
     def _browse_certificate(self):
         filename, _ = QFileDialog.getOpenFileName(
@@ -502,9 +621,14 @@ class ConfigurationWindow(QWidget):
 
 
 class Desktop(QObject):
-    def __init__(self, path, *, redaction, show_config=False, background=False):
+    def __init__(
+        self, path, *, redaction, show_config=False, background=False, background_services=True
+    ):
         super().__init__()
         self.path, self.redaction = path, redaction
+        self.desktop_state = DesktopState(path.with_name(path.stem + ".desktop.json"))
+        self.updater = self.downloader = None
+        self._release_url = ""
         self.credentials = CredentialStore()
         self.worker = self.tester = None
         self._pending_start = False
@@ -529,6 +653,9 @@ class Desktop(QObject):
         self.window.save_requested.connect(self.save)
         self.window.test_requested.connect(self.test)
         self.window.flash_requested.connect(self.flash_firmware)
+        self.window.download_flash_requested.connect(self.download_and_flash)
+        self.window.check_updates_requested.connect(lambda: self.check_updates(force=True))
+        self.window.update_notice.clicked.connect(self.open_release)
         self.flasher = None
         self._flash_request = None
         self.tray = QSystemTrayIcon(bridge_icon(), self)
@@ -545,6 +672,7 @@ class Desktop(QObject):
             "Open log folder",
             lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(path.parent))),
         )
+        self.menu.addAction("About…", self.about)
         self.menu.addAction("Quit", self.quit)
         self.tray.setContextMenu(self.menu)
         self.tray.setToolTip("uBridge · Disconnected")
@@ -576,13 +704,169 @@ class Desktop(QObject):
         QTimer.singleShot(0, self.preload_dashboards)
         self.window.base_url.editingFinished.connect(self.preload_dashboards)
         self.window.token.editingFinished.connect(self.preload_dashboards)
+        self.update_timer = QTimer(self)
+        self.update_timer.setInterval(60_000)
+        self.update_timer.timeout.connect(self.check_updates)
+        if background_services:
+            self.update_timer.start()
+            QTimer.singleShot(0, self.startup_services)
+
+    def about(self):
+        QMessageBox.information(
+            self.window, "About uBridge", f"uBridge version {__version__} - (c) 2026 umbacos"
+        )
+
+    def startup_services(self):
+        self.check_updates()
+        marker = installation_marker()
+        if self.desktop_state.read().get("firmware_prompt_version") == marker:
+            return
+        self.show_configuration()
+        answer = QMessageBox.question(
+            self.window,
+            "Set up your TJC display",
+            "Does your TJC display need to be flashed? "
+            "Flashing the recommended uBridge firmware is recommended for a new installation.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        self.desktop_state.update(firmware_prompt_version=marker)
+        if answer == QMessageBox.StandardButton.Yes:
+            self.download_and_flash()
+
+    def check_updates(self, *, force=False):
+        if self._quitting or self.updater and self.updater.isRunning():
+            return
+        cached = self.desktop_state.read().get("available_release")
+        if isinstance(cached, dict) and str(cached.get("url", "")).startswith(
+            "https://github.com/umbacos/uBridge/releases/tag/"
+        ):
+            release = Release(str(cached.get("version", "")), cached["url"], "")
+            self.show_release(release)
+        if not force and not self.desktop_state.due():
+            return
+        try:
+            self.desktop_state.update(last_update_check=time.time())
+        except OSError as err:
+            self.window.update_status.setText(f"Cannot save update check state: {err}")
+            return
+        self.window.check_updates_button.setEnabled(False)
+        self.window.update_status.setText("Checking GitHub releases…")
+        self.updater = NetworkWorker(
+            lambda worker: latest_release(
+                download=lambda url, limit: fetch(
+                    url, limit, cancelled=worker.isInterruptionRequested
+                )
+            )
+        )
+        self.updater.result.connect(self.update_result)
+        self.updater.finished.connect(lambda: self.window.check_updates_button.setEnabled(True))
+        self.updater.start()
+
+    def show_release(self, release):
+        available = newer(release)
+        self._release_url = release.url if available else ""
+        self.window.update_notice.setText(
+            f"uBridge {release.version} is available — open release" if available else ""
+        )
+        self.window.update_notice.setVisible(available)
+
+    def update_result(self, ok, value):
+        if self._quitting:
+            return
+        if not ok:
+            self.window.update_status.setText(
+                f"Could not check GitHub: {value}. The next automatic check is in 24 hours."
+            )
+            return
+        self.show_release(value)
+        try:
+            self.desktop_state.update(
+                available_release={"version": value.version, "url": value.url} if value else None
+            )
+        except OSError:
+            pass
+        self.window.update_status.setText(
+            f"New release: {value.version}."
+            if newer(value)
+            else "You are up to date."
+            if value
+            else "No published GitHub releases yet."
+        )
+
+    def open_release(self):
+        if self._release_url:
+            QDesktopServices.openUrl(QUrl(self._release_url))
+
+    def download_and_flash(self):
+        if (
+            self.flasher
+            and self.flasher.isRunning()
+            or self.downloader
+            and self.downloader.isRunning()
+            or self._flash_request
+        ):
+            return
+        self.window.tabs.setCurrentIndex(1)
+        target = firmware_target_dialog(self.window)
+        if target is None:
+            return
+        port, baud = target
+        self.window.serial.setCurrentText(port)
+        self.window.baud.setCurrentText(str(baud))
+        settings = replace(self.settings, serial_port=port, baudrate=baud)
+        try:
+            save_settings(self.path, settings)
+        except OSError as err:
+            self.window.feedback.setText(f"Could not save display settings: {err}")
+            return
+        self.settings = settings
+        self.flash_controls(False)
+        self.downloader = NetworkWorker(
+            lambda worker: download_firmware(
+                self.path.parent / "firmware",
+                progress=worker.progress.emit,
+                download=lambda url, limit: fetch(
+                    url, limit, cancelled=worker.isInterruptionRequested
+                ),
+            )
+        )
+        self.downloader.progress.connect(self.window.feedback.setText)
+        self.downloader.result.connect(
+            lambda ok, value: self.firmware_downloaded(ok, value, port, baud)
+        )
+        self.downloader.start()
+
+    def firmware_downloaded(self, ok, value, port, baud):
+        if self._quitting:
+            return
+        if not ok:
+            self.window.feedback.setText(f"Firmware download failed: {value}")
+            self.flash_controls(True)
+            return
+        self._flash_request = value, port, baud
+        self.disconnect()
+        self._begin_flash()
+
+    def flash_controls(self, enabled):
+        self.window.flash_button.setEnabled(enabled)
+        self.window.download_flash_button.setEnabled(enabled)
+        self.window.serial.setEnabled(enabled)
+        self.window.baud.setEnabled(enabled)
+        self.window.save_button.setEnabled(enabled)
 
     def preload_dashboards(self):
         if self.window.base_url.text().strip() and self.window.token.text().strip():
             self.test()
 
     def flash_firmware(self):
-        if self.flasher and self.flasher.isRunning() or self._flash_request:
+        if (
+            self.flasher
+            and self.flasher.isRunning()
+            or self.downloader
+            and self.downloader.isRunning()
+            or self._flash_request
+        ):
             return
         port = self.window.serial.currentText().strip()
         baud = int(self.window.baud.currentText())
@@ -605,7 +889,7 @@ class Desktop(QObject):
         ):
             return
         self._flash_request = filename, port, baud
-        self.window.flash_button.setEnabled(False)
+        self.flash_controls(False)
         self.disconnect()
         self._begin_flash()
 
@@ -618,7 +902,7 @@ class Desktop(QObject):
         self.flasher = FirmwareWorker(filename, port, baud)
         self.flasher.progress.connect(self.window.feedback.setText)
         self.flasher.result.connect(lambda ok, message: self.window.feedback.setText(message))
-        self.flasher.finished.connect(lambda: self.window.flash_button.setEnabled(True))
+        self.flasher.finished.connect(lambda: self.flash_controls(True))
         self.flasher.start()
 
     def show_configuration(self):
@@ -676,8 +960,14 @@ class Desktop(QObject):
         self.tester.start()
 
     def connect(self):
-        if self._flash_request or self.flasher and self.flasher.isRunning():
-            self.window.feedback.setText("Wait for the firmware upload to finish.")
+        if (
+            self._flash_request
+            or self.flasher
+            and self.flasher.isRunning()
+            or self.downloader
+            and self.downloader.isRunning()
+        ):
+            self.window.feedback.setText("Wait for the firmware download or upload to finish.")
             return
         try:
             self.settings.validated()
@@ -751,6 +1041,10 @@ class Desktop(QObject):
             self.show_configuration()
             return
         self._quitting = True
+        self.update_timer.stop()
+        for network in (self.updater, self.downloader):
+            if network:
+                network.stop()
         self._pending_start = False
         if self.tester:
             self.tester.stop()
@@ -760,6 +1054,9 @@ class Desktop(QObject):
             self._finish_quit()
 
     def _finish_quit(self):
+        if any(worker and worker.isRunning() for worker in (self.updater, self.downloader)):
+            QTimer.singleShot(50, self._finish_quit)
+            return
         if self.tester and self.tester.isRunning():
             QTimer.singleShot(50, self._finish_quit)
             return
@@ -772,6 +1069,7 @@ def run_desktop(path: Path, show_config=False, background=False, redaction=None)
     application.setApplicationName("uBridge")
     application.setApplicationVersion(__version__)
     application.setQuitOnLastWindowClosed(False)
+    application.styleHints().unsetColorScheme()
     path.parent.mkdir(parents=True, exist_ok=True)
     lock = QLockFile(str(path.with_suffix(".lock")))
     if not lock.tryLock(100):
@@ -787,7 +1085,7 @@ def run_desktop(path: Path, show_config=False, background=False, redaction=None)
     application._tjc_desktop = desktop
     result = application.exec()
     desktop.quit()
-    for worker in (desktop.worker, desktop.tester):
+    for worker in (desktop.worker, desktop.tester, desktop.updater, desktop.downloader):
         if worker:
             worker.stop()
             worker.wait(5000)

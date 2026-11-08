@@ -162,6 +162,24 @@ def author(entries, work):
     )
     add(
         anchor,
+        "RegistryValue",
+        Root="HKCU",
+        Key=r"Software\uBridge\Installer",
+        Name="Directory",
+        Type="string",
+        Value="[INSTALLFOLDER]",
+    )
+    add(
+        anchor,
+        "RegistryValue",
+        Root="HKCU",
+        Key=r"Software\uBridge\Installer",
+        Name="Session",
+        Type="string",
+        Value="[ProductCode]|[Date]|[Time]",
+    )
+    add(
+        anchor,
         "Shortcut",
         Id="uBridgeStartMenu",
         Directory="uBridgeMenu",
@@ -195,6 +213,30 @@ def author(entries, work):
         )
     add(feature, "ComponentRef", Id="uBridgeShortcuts")
     ET.SubElement(package, f"{{{UI_NAMESPACE}}}WixUI", {"Id": "WixUI_Minimal"})
+    add(package, "Property", Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT", Value="Run uBridge")
+    add(package, "Property", Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX", Value="1")
+    add(
+        package,
+        "CustomAction",
+        Id="RunuBridge",
+        FileRef=identifier("F", "uBridge.exe"),
+        ExeCommand="--configure",
+        Return="asyncNoWait",
+        Execute="immediate",
+        Impersonate="yes",
+    )
+    ui = add(package, "UI")
+    add(
+        ui,
+        "Publish",
+        Dialog="ExitDialog",
+        Control="Finish",
+        Event="DoAction",
+        Value="RunuBridge",
+        Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed",
+        Order="1",
+    )
+
     text = (ROOT / "LICENSE").read_text(encoding="utf-8")
     escaped = (
         text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}").replace("\n", "\\par\n")

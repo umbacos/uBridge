@@ -232,7 +232,7 @@ async def check(executable):
             report = {
                 "verified_at_utc": datetime.now(UTC).isoformat(),
                 "executable": executable.name,
-                "version": "0.7.2",
+                "version": "0.8.0",
                 "websocket_authentication": True,
                 "serial_handshake": True,
                 "touch_service_state_redraw": True,

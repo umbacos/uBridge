@@ -1,7 +1,7 @@
-# Validation — 0.7.2 (2026-11-08)
+# Validation — 0.8.0 (2026-11-08)
 
-- Windows Python 3.13: 84 tests passed, including upload wire failures and native/vector tray status.
-- Linux Python 3.14: 76 tests passed; Qt tray tests skipped because Qt is not installed in the HA test environment.
+- Windows Python 3.13: 97 tests passed, including upload wire failures and native/vector tray status.
+- Linux Python 3.14: 84 tests passed; Qt tray tests skipped because Qt is not installed in the HA test environment.
 - HA 2026.10.4 isolated integration and recorder checks passed. Direct idle stages
   80 → 40 → 0 → wake 80 and wake-only touch suppression were exercised through Runtime.
   A failed firmware upload was simulated to verify UART release and reconnection.
@@ -19,6 +19,21 @@
 The Windows application is unsigned. Linux/macOS source is supplied; native desktop
 tray behavior on those systems has not been exercised. Native charts are adapted
 to the panel resolution and do not reproduce HA browser themes or tooltips.
+
+Version 0.8 adds checks for stable release filtering and numeric version ordering,
+daily update state across restarts, first-run firmware consent, download failure
+without serial access, and firmware model/series/size/SHA256 validation. Tests cover
+both the release ZIP and immutable-commit fallback. A live download from the public
+repository also passed firmware verification without opening a serial port.
+The repository had no published releases when checked; the API's 404 response is
+handled as that normal state. Tests use fixtures for newer release responses.
+
+The four configuration tabs were rendered in light and dark palettes and visually
+inspected, including disabled idle controls. Qt tests check tab grouping, disabled
+labels, the exact About text and first-run Yes/No behavior. Actual OS appearance
+switching and real Linux/macOS desktop rendering remain untested. MSI verification
+checks the final-page Run uBridge checkbox and conditional launch action; it does
+not click Finish in a real installation or upload to the physical display.
 
 Full-body rich-card sheets, dashboard order, six-tile pagination and ignoring the
 removed batch setting are covered by regression tests. Updated previews include

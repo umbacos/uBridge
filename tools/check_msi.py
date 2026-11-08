@@ -40,6 +40,15 @@ def check():
     )
     dialogs = {d.attrib["Id"] for d in package.findall(".//w:Dialog", ns)}
     assert {"WelcomeEulaDlg", "ProgressDlg", "ExitDialog"} <= dialogs
+    launch = package.find("w:CustomAction[@Id='RunuBridge']", ns)
+    assert launch is not None and launch.attrib["ExeCommand"] == "--configure"
+    checkbox = package.find("w:Property[@Id='WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT']", ns)
+    assert checkbox is not None and checkbox.attrib["Value"] == "Run uBridge"
+    assert any(
+        event.attrib.get("Value") == "RunuBridge"
+        and "NOT Installed" in event.attrib.get("Condition", "")
+        for event in package.findall(".//w:Publish", ns)
+    )
     expected = {relative: path for path, relative in payload()}
     installed = {}
 

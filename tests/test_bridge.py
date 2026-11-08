@@ -517,7 +517,7 @@ def test_source_autostart_command_runs_outside_checkout(tmp_path):
         [*command, "--version"], cwd=tmp_path, capture_output=True, text=True, timeout=15
     )
     assert result.returncode == 0
-    assert "uBridge 0.7.2" in result.stdout
+    assert "uBridge 0.8.0" in result.stdout
 
 
 async def test_dashboard_discovery_includes_hidden_and_default_dashboard():

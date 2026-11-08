@@ -153,7 +153,7 @@ def test_desktop_startup_preloads_dashboard_dropdown_without_serial(tmp_path, mo
             pass
 
     monkeypatch.setattr(ui, "Worker", Discovery)
-    desktop = ui.Desktop(path, redaction=SimpleNamespace(token=""))
+    desktop = ui.Desktop(path, redaction=SimpleNamespace(token=""), background_services=False)
     app.processEvents()
     assert loaded == [True]
     assert desktop.window.available_dashboard.findData("home") > 0
@@ -166,3 +166,74 @@ def test_desktop_startup_preloads_dashboard_dropdown_without_serial(tmp_path, mo
     desktop.window.deleteLater()
     desktop.deleteLater()
     app.processEvents()
+
+
+def test_tabs_disabled_fields_and_palette_following(monkeypatch):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    app = ui.QApplication.instance() or ui.QApplication([])
+    window = ui.ConfigurationWindow()
+    window.populate(ui.Settings(idle_mode="dashboard", idle_dashboard="clock"), "")
+    assert [window.tabs.tabText(i) for i in range(window.tabs.count())] == [
+        "Home Assistant",
+        "Screen",
+        "Dashboards",
+        "Application",
+    ]
+    assert not window.idle_off_seconds.isEnabled()
+    assert not window._field_labels[window.idle_off_seconds].isEnabled()
+    assert "palette(base)" in window.styleSheet() and ":disabled" in window.styleSheet()
+    assert "background: #f5f8fc" not in window.styleSheet()
+    window.idle_enabled.setChecked(False)
+    assert not window.idle_dashboard.isEnabled()
+    window.deleteLater()
+    app.processEvents()
+
+
+def test_about_text_matches_requested_version_and_copyright(monkeypatch):
+    texts = []
+    monkeypatch.setattr(
+        ui.QMessageBox, "information", lambda parent, title, text: texts.append(text)
+    )
+    ui.Desktop.about(SimpleNamespace(window=None))
+    assert texts == [f"uBridge version {ui.__version__} - (c) 2026 umbacos"]
+
+
+@pytest.mark.parametrize(
+    "answer", [ui.QMessageBox.StandardButton.Yes, ui.QMessageBox.StandardButton.No]
+)
+def test_first_run_prompts_once_and_only_downloads_if_user_accepts(tmp_path, monkeypatch, answer):
+    prompts, downloads = [], []
+
+    def question(*args):
+        prompts.append(args)
+        assert args[-1] == ui.QMessageBox.StandardButton.Yes
+        return answer
+
+    monkeypatch.setattr(ui.QMessageBox, "question", question)
+    desktop = SimpleNamespace(
+        desktop_state=ui.DesktopState(tmp_path / "state.json"),
+        window=None,
+        check_updates=lambda: None,
+        show_configuration=lambda: None,
+        download_and_flash=lambda: downloads.append(True),
+    )
+    ui.Desktop.startup_services(desktop)
+    ui.Desktop.startup_services(desktop)
+    assert len(prompts) == 1
+    assert downloads == ([True] if answer == ui.QMessageBox.StandardButton.Yes else [])
+
+
+def test_download_error_does_not_open_serial_or_start_flash():
+    calls = []
+    desktop = SimpleNamespace(
+        _quitting=False,
+        window=SimpleNamespace(feedback=SimpleNamespace(setText=lambda text: calls.append(text))),
+        flash_controls=lambda enabled: calls.append(enabled),
+        disconnect=lambda: calls.append("disconnect"),
+        _begin_flash=lambda: calls.append("flash"),
+    )
+    ui.Desktop.firmware_downloaded(desktop, False, "bad hash", "COM4", 115200)
+    assert "flash" not in calls and "disconnect" not in calls
+    ui.Desktop.firmware_downloaded(desktop, True, "verified.tft", "COM4", 115200)
+    assert desktop._flash_request == ("verified.tft", "COM4", 115200)
+    assert calls[-2:] == ["disconnect", "flash"]

@@ -23,12 +23,12 @@ without recompiling its firmware.
 
 The release directory contains two ZIPs and a Windows installer:
 
-- `uBridge-0.7.2-windows-x64.msi`: Windows setup wizard for uBridge, with Start menu
+- `uBridge-0.8.0-windows-x64.msi`: Windows setup wizard for uBridge, with Start menu
   shortcuts, firmware and guides. Installs for the current user; no Python or .NET
   installation is needed to run the installed app.
-- `tjc-hmi-0.7.2-install.zip`: Windows tray bridge in `bridge/`, HA integration in
+- `tjc-hmi-0.8.0-install.zip`: Windows tray bridge in `bridge/`, HA integration in
   `custom_components/`, compiled display firmware in `firmware/`, guides and examples.
-- `tjc-hmi-0.7.2-source.zip`: editable HMI project, picture sources, Python code,
+- `tjc-hmi-0.8.0-source.zip`: editable HMI project, picture sources, Python code,
   tests and build tools. Use this for Linux/macOS source installation.
 
 For a normal Windows installation, run the MSI and start **uBridge** from the Start
@@ -37,7 +37,7 @@ copying the HA integration to the HA host, or for a portable desktop installatio
 
 Extract the entire installation ZIP. For a display attached to a **different
 computer from HA**, run `bridge/uBridge.exe` and configure the connection.
-Choose **Flash display firmware…** in Configuration to upload `firmware/tjc_hmi.tft`
+Choose **Screen → Flash local firmware…** in Configuration to upload `firmware/tjc_hmi.tft`
 without the vendor editor. The bridge disconnects before flashing; reconnect after
 completion. Saved connection settings use the same location as earlier versions.
 
@@ -56,6 +56,20 @@ Follow [the installation guide](docs/INSTALL.md) for wiring, flashing, a complet
 YAML example, supported controls, troubleshooting, and rebuilding the firmware.
 No MQTT broker, ESPHome controller, or HA add-on is needed. Direct serial mode does
 not need an access token; the remote desktop bridge does.
+
+## Updates in 0.8.0
+
+The Windows installer offers **Run uBridge** on its final page. On first launch,
+uBridge asks whether to download and flash the recommended firmware, then lets you
+confirm the local serial port. Firmware downloads are checked against their model,
+size and SHA256 before uploading.
+
+Configuration now has **Home Assistant**, **Screen**, **Dashboards** and
+**Application** tabs, follows the operating system's light/dark mode and grays out
+disabled settings. The tray includes **About…**. A daily GitHub release check shows
+an update notice in Configuration; **Check now** is also available.
+
+![Configuration in dark mode](docs/ubridge-screen-dark.png)
 
 ## Updates in 0.7.2
 

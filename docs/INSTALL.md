@@ -11,7 +11,7 @@ migration. No dashboard renaming is needed.
 
 ## Windows installer
 
-For a display connected to a Windows computer, `uBridge-0.7.2-windows-x64.msi`
+For a display connected to a Windows computer, `uBridge-0.8.0-windows-x64.msi`
 installs uBridge, firmware and guides for the current user and adds Start menu
 shortcuts. See [MSI setup and upgrades](BRIDGE.md#windows-msi-installer).
 Use the ZIP's HA integration folder for installation on a direct-connected HA host.

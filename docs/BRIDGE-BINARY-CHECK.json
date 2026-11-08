@@ -1,7 +1,7 @@
 {
-  "verified_at_utc": "2026-11-08T20:56:57.956275+00:00",
+  "verified_at_utc": "2026-11-08T21:54:48.495454+00:00",
   "executable": "uBridge.exe",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "websocket_authentication": true,
   "serial_handshake": true,
   "touch_service_state_redraw": true,

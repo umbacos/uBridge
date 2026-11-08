@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "homeassistant-tjc-hmi"
-version = "0.7.2"
+version = "0.8.0"
 description = "Serial dashboard frontend for the TJC4827X243 X2"
 requires-python = ">=3.13"
 dependencies = ["pyserial==3.5", "pyserial-asyncio-fast==0.16", "tzdata>=2025.2"]

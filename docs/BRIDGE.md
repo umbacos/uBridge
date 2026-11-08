@@ -7,7 +7,7 @@ Use the direct integration when the UART adapter is attached to the HA host inst
 
 ## Windows MSI installer
 
-Run `uBridge-0.7.2-windows-x64.msi` and complete the setup wizard. It installs the
+Run `uBridge-0.8.0-windows-x64.msi` and complete the setup wizard. It installs the
 64-bit application for the current user in `%LOCALAPPDATA%\Programs\uBridge`,
 with **uBridge** and guide shortcuts in the Start menu. Python, .NET and the vendor
 HMI editor are not required on the target PC. Firmware is included in the installed
@@ -19,6 +19,12 @@ If Start at sign-in was enabled for a portable copy, open the installed app and
 click **Save & connect** to update startup registration to its installed location.
 Startup remains an app setting, rather than being enabled automatically by setup.
 
+Leave **Run uBridge** checked on the final setup page to open the application.
+The first launch after installation asks whether the TJC needs flashing, with
+**Yes** recommended. Select the local serial port and baud rate in the next dialog
+and confirm **Download & flash**. Home Assistant credentials are not needed to
+flash. Choosing No or cancelling leaves flashing available on the **Screen** tab.
+
 Future MSI versions upgrade this installation. Remove it through **Windows Settings
 → Apps → Installed apps → uBridge → Uninstall**. Disable **Start at sign-in** in the
 app before uninstalling. Uninstall removes installed files and shortcuts; saved
@@ -28,7 +34,7 @@ installation ZIP to your HA host when using direct serial mode.
 
 ## Windows portable application
 
-Extract **all** of `tjc-hmi-0.7.2-install.zip`, then run `bridge/uBridge.exe`.
+Extract **all** of `tjc-hmi-0.8.0-install.zip`, then run `bridge/uBridge.exe`.
 Keep its `_internal` directory beside the executable. Right-click the **uB** tray
 icon and select **Configuration…**. Green means HA and display are connected;
 orange means a connection is still pending or disconnected.
@@ -41,6 +47,17 @@ them to the display list once. No dashboard title or URL needs to change.
 ![uBridge configuration](ubridge-configuration.png)
 
 ## Configure
+
+Settings are grouped into four tabs:
+
+- **Home Assistant**: server address, access token, credential storage and CA file.
+- **Screen**: serial connection, brightness, idle behavior and firmware upload.
+- **Dashboards**: available and selected dashboards, ordering and refresh.
+- **Application**: startup options and release-check status.
+
+The window follows the operating system's light/dark appearance, including changes
+while running. Disabled settings and their labels are gray. The system tray icon
+remains green when connected and orange when waiting or disconnected.
 
 1. Enter the HA base address, for example `http://homeassistant.local:8123`, and a
    long-lived access token from your HA profile → Security.
@@ -137,6 +154,7 @@ release has not been verified across a real sign-out/sign-in cycle.
 - **Reload dashboards** forces dashboard/card configuration to reload.
 - **Disconnect** releases the UART and network connections.
 - **Open log folder** opens settings and rotating logs.
+- **About…** displays `uBridge version 0.8.0 - (c) 2026 umbacos`.
 - **Quit** stops the app and releases the serial port.
 
 HA/serial failures retry automatically. Actions interrupted by network failures are
@@ -146,12 +164,36 @@ Configuration on supported desktops. If no tray exists, the window remains usabl
 
 ## Firmware upload
 
-Use **Flash display firmware…** in Configuration and choose `firmware/tjc_hmi.tft`.
+On the **Screen** tab, use **Download & flash recommended firmware…** to obtain
+firmware from [umbacos/uBridge](https://github.com/umbacos/uBridge). Confirm the
+local serial port before downloading. uBridge prefers the latest stable release's
+installation ZIP, or files at that release's tag. If no releases have been published,
+it resolves `main` to a single commit and downloads both files from that commit.
+The downloaded model, byte count and SHA256 must match `firmware/build.json` before
+upload can start. Download or validation failures leave the display untouched.
+
+For an offline file, use **Flash local firmware…** and choose `firmware/tjc_hmi.tft`.
 The app stops its serial worker before upload. Keep the display powered throughout
 upload; reconnect after it reboots. The uploader checks the TJC model, enters upload
 mode and requires acknowledgements for every block. See [INSTALL.md](INSTALL.md)
 for wiring, power and microSD/editor alternatives. Changes in 0.6 require updating
 the app/integration, without reflashing a display already running the native icon TFT.
+
+## Release notifications
+
+While uBridge runs, it checks the public GitHub releases API at most once per 24
+hours. The last check is saved across restarts; failed requests also wait 24 hours
+before retrying automatically. **Application → Check now** requests an immediate
+check. No GitHub account or Home Assistant token is used for these requests.
+
+A newer stable version produces a notice at the top of Configuration. Click it to
+open the release page and download an installer. Updates are not installed
+automatically. Drafts and prereleases are ignored. With no published releases,
+Application reports that status. Release-check and first-run state are stored in
+`config.desktop.json` next to the regular configuration; verified firmware is
+cached in the adjacent `firmware/` folder. Installed Windows copies record each
+installation separately so the firmware question appears again after reinstalling
+or upgrading. Portable/source copies ask once per application version.
 
 ## Linux and macOS from source
 

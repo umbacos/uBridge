@@ -8,7 +8,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from PySide6.QtCore import QLockFile, QObject, Qt, QThread, QTimer, QUrl, Signal
-from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPainterPath, QPixmap
+from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPainterPath, QPalette, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -440,7 +440,13 @@ class ConfigurationWindow(QWidget):
         layout.addWidget(version)
 
     def _apply_theme(self, *_):
-        self.setStyleSheet("""
+        palette = QApplication.instance().palette()
+        dark = palette.color(QPalette.ColorRole.Window).lightness() < 128
+        # Mid is a shadow/border color in native palettes and can be too dark for text.
+        muted_text = "#b6bec9" if dark else "palette(mid)"
+        disabled_border = "#626d7b" if dark else "palette(midlight)"
+        self.setStyleSheet(
+            """
             QWidget {font-family: 'Segoe UI', sans-serif; font-size: 13px;}
             QLineEdit,QComboBox,QSpinBox,QListWidget {min-height: 29px; padding: 2px 7px;
                 background: palette(base); color: palette(text);
@@ -448,7 +454,7 @@ class ConfigurationWindow(QWidget):
             QPushButton {padding: 7px 14px; background: palette(button);
                 color: palette(button-text); border: 1px solid palette(mid); border-radius: 4px;}
             QLabel#title {font-size: 25px; font-weight: 600;}
-            QLabel#subtitle {color: palette(mid);}
+            QLabel#subtitle {color: $muted_text;}
             QFrame#statusCard {background: palette(alternate-base); border-radius: 9px;}
             QFrame#statusCard QLabel {background: transparent;}
             QPushButton#connect {background: palette(highlight);
@@ -456,9 +462,10 @@ class ConfigurationWindow(QWidget):
             QPushButton#updateNotice {border: 2px solid palette(highlight); text-align: left;}
             QLineEdit:disabled,QComboBox:disabled,QSpinBox:disabled,QListWidget:disabled,
             QPushButton:disabled,QPushButton#connect:disabled {
-                background: palette(window); color: palette(mid); border-color: palette(midlight);}
-            QLabel:disabled,QCheckBox:disabled {color: palette(mid);}
-        """)
+                background: palette(window); color: $muted_text; border-color: $disabled_border;}
+            QLabel:disabled,QCheckBox:disabled {color: $muted_text;}
+        """.replace("$muted_text", muted_text).replace("$disabled_border", disabled_border)
+        )
 
     def selected_dashboards(self):
         return [

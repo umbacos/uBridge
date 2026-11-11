@@ -6,7 +6,6 @@ __pycache__/
 *.pyc
 docs/vendor-help-extract.txt
 firmware/*.bak
-dist/
 build/
 *.egg-info/
 *.spec

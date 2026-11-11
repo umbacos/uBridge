@@ -633,7 +633,7 @@ async def test_weather_response_api_and_live_combined_clock_weather_view():
             await eventually(
                 lambda: (
                     ("weather.home", "daily") in bridge.controller.forecasts
-                    and any(c.endswith(',"19C"') for draw in bridge.panel.draws for c in draw)
+                    and any(c.endswith(',"19"') for draw in bridge.panel.draws for c in draw)
                 )
             )
             assert bridge.controller.time_zone == "Europe/Rome"

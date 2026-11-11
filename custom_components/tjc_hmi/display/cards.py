@@ -173,6 +173,41 @@ def temperature(value, rounded=False):
     return "--" if value is None else str(round(value)) if rounded else f"{value:g}"
 
 
+def degree_mark(screen, x, y, radius, color):
+    # Font 0 is ASCII only. Draw the degree sign with a native circle.
+    screen.commands.append(f"cir {x + radius},{y + radius},{radius},{color}")
+
+
+def weather_temperatures(screen, x, y, width, height, values, color, bg, *, right=False):
+    separator = 8
+    degree_width = 6
+    marks = sum(value != "--" for value in values)
+    gap_width = degree_width * marks + separator * (len(values) - 1)
+    # Keep both readings visible when a compact header has long temperatures.
+    compact_digits = sum(len(value) * 10 for value in values) + gap_width > width and all(
+        char in "0123456789.-" for value in values for char in value
+    )
+    widths = [digit_width(value, 1) if compact_digits else len(value) * 10 for value in values]
+    available = width - sum(widths) - gap_width
+    if available < 0:
+        screen.text(x, y, width, height, "--", color, bg, align=2 if right else 1)
+        return
+    left = x + (available if right else available // 2)
+    for index, (value, value_width) in enumerate(zip(values, widths, strict=True)):
+        if index:
+            middle = y + height // 2
+            screen.line(left + 1, middle + 5, left + 5, middle - 5, color)
+            left += separator
+        if compact_digits:
+            digits(screen, value, left, y + (height - 11) // 2, 1, color, bg)
+        else:
+            screen.text(left, y, value_width, height, value, color, bg)
+        left += value_width
+        if value != "--":
+            degree_mark(screen, left, y + (height - 20) // 2 + 3, 2, color)
+            left += degree_width
+
+
 def condition_label(state):
     return "Partly cloudy" if state == "partlycloudy" else state.replace("-", " ").capitalize()
 
@@ -186,7 +221,6 @@ def weather_card(screen, item, entity, forecast, x, y, w, h, now, zone, key):
         return
 
     attributes = entity.attributes
-    unit = str(attributes.get("temperature_unit") or "").replace("°", "").strip()
     local_now, _ = local_time(now, zone)
     today = local_now.date()
     today_row = {}
@@ -236,33 +270,37 @@ def weather_card(screen, item, entity, forecast, x, y, w, h, now, zone, key):
         width = right - split
         screen.fill(split, header_y, x + w - split, header_height)
         value = temperature(attributes.get("temperature"), item.round_temperature)
-        unit_width = 10 * min(len(unit), 4)
         scale = 2 if compact else 4
         value_width = digit_width(value, scale)
         value_height = 11 * scale
-        if value_width <= width - unit_width and all(c in "0123456789.-" for c in value):
+        radius = scale
+        degree_width = 2 * radius + 2 if value != "--" else 0
+        if value_width <= width - degree_width and all(c in "0123456789.-" for c in value):
             digits(
                 screen,
                 value,
-                right - unit_width - value_width,
+                right - degree_width - value_width,
                 header_y,
                 scale,
                 TEXT,
                 PANEL,
             )
-            if unit_width:
-                screen.text(right - unit_width, header_y, unit_width, value_height, unit, align=2)
+            if degree_width:
+                degree_mark(screen, right - degree_width, header_y + 1, radius, TEXT)
         else:
-            screen.text(split, header_y, width, value_height, value + unit, align=2)
+            weather_temperatures(
+                screen, split, header_y, width, value_height, (value,), TEXT, PANEL, right=True
+            )
 
         secondary = item.secondary_info or ("extrema" if today_row else "humidity")
-        if secondary == "extrema":
-            info = ""
-            if today_row:
-                high = temperature(today_row.get("temperature"), item.round_temperature)
-                low = temperature(today_row.get("templow"), item.round_temperature)
-                info = f"{high}/{low}" if compact else f"{high} / {low} {unit}"
-        else:
+        info_y = header_y + value_height
+        if secondary == "extrema" and today_row:
+            high = temperature(today_row.get("temperature"), item.round_temperature)
+            low = temperature(today_row.get("templow"), item.round_temperature)
+            weather_temperatures(
+                screen, split, info_y, width, 20, (high, low), MUTED, PANEL, right=True
+            )
+        elif secondary != "extrema":
             units = {
                 "humidity": "%",
                 "wind_speed": attributes.get("wind_speed_unit", ""),
@@ -273,8 +311,7 @@ def weather_card(screen, item, entity, forecast, x, y, w, h, now, zone, key):
             info = f"{attributes.get(secondary, '--')} {units.get(secondary, '')}".strip()
             if not compact:
                 info = f"{secondary.replace('_', ' ').capitalize()} {info}"
-        if info:
-            screen.text(split, header_y + value_height, width, 20, info, MUTED, align=2)
+            screen.text(split, info_y, width, 20, info, MUTED, align=2)
         top = y + header_height
     else:
         screen.text(x + 10, y + 2, w - 20, 26, item.name or "Weather forecast", ACCENT)
@@ -306,7 +343,7 @@ def weather_card(screen, item, entity, forecast, x, y, w, h, now, zone, key):
             ACCENT,
         )
         high = temperature(row.get("temperature"), item.round_temperature)
-        screen.text(left, top + 44, width, 20, high + unit if high != "--" else high, align=1)
+        weather_temperatures(screen, left, top + 44, width, 20, (high,), TEXT, PANEL)
         if numeric(row.get("templow")) is not None:
             low = temperature(row.get("templow"), item.round_temperature)
-            screen.text(left, top + 64, width, 20, low + unit, MUTED, align=1)
+            weather_temperatures(screen, left, top + 64, width, 20, (low,), MUTED, PANEL)

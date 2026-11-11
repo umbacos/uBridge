@@ -68,10 +68,13 @@ def test_four_card_view_fits_one_sheet_and_keeps_entity_hit_regions(analog):
         region.entity_id == "sensor.temp" and region.event == "detail" for region in screen.regions
     )
     forecast = screen.blocks["item1-forecast"]
-    for label in ("Mon", "Tue", "Wed", "20C", "11C"):
+    for label in ("Mon", "Tue", "Wed", "20", "11"):
         assert any(command.endswith(f',"{label}"') for command in forecast)
     assert not any(command.endswith((',"Sun"', ',"Thu"')) for command in forecast)
-    assert any(c.endswith(',"19/10"') for c in screen.blocks["item1-current-info"])
+    assert sum(command.startswith("cir ") for command in forecast) == 6
+    current = screen.blocks["item1-current-info"]
+    assert all(any(c.endswith(f',"{label}"') for c in current) for label in ("19", "10"))
+    assert sum(command.startswith("cir ") for command in current) == 3
     assert not any("Home weather" in c for c in screen.commands)
     for key, commands in screen.blocks.items():
         if not key.startswith("item"):
@@ -158,7 +161,7 @@ def test_weather_forecast_options_missing_data_and_hidden_cards():
     )
     assert any('"13:00"' in command for command in screen.commands)
     assert not any("Sunny" in command for command in screen.commands)
-    for label in ("19C", "10C"):
+    for label in ("19", "10"):
         assert any(command.endswith(f',"{label}"') for command in screen.commands)
     error = render(
         pages,
@@ -192,7 +195,10 @@ def test_weather_forecast_options_missing_data_and_hidden_cards():
 def test_daily_forecast_uses_local_tomorrow_and_never_uses_future_extrema_in_header():
     pages = dashboard([{"type": "weather-forecast", "entity": "weather.home"}])
     now = datetime(2026, 11, 8, 23, 30, tzinfo=UTC)  # Monday in Rome.
-    for rows, expected_info in [(FORECAST.rows, "20 / 11 C"), (FORECAST.rows[2:], "Humidity 64 %")]:
+    for rows, expected_info in [
+        (FORECAST.rows, ("20", "11")),
+        (FORECAST.rows[2:], ("Humidity 64 %",)),
+    ]:
         screen = render(
             pages,
             {"weather.home": WEATHER},
@@ -200,10 +206,11 @@ def test_daily_forecast_uses_local_tomorrow_and_never_uses_future_extrema_in_hea
             time_zone="Europe/Rome",
             forecasts={("weather.home", "daily"): Forecast(rows)},
         )
-        assert any(c.endswith(f',"{expected_info}"') for c in screen.blocks["item0-current-info"])
+        for label in expected_info:
+            assert any(c.endswith(f',"{label}"') for c in screen.blocks["item0-current-info"])
         forecast = screen.blocks["item0-forecast"]
         assert any(c.endswith(',"Tue"') for c in forecast)
-        assert not any(c.endswith((',"Sun"', ',"Mon"', ',"20C"')) for c in forecast)
+        assert not any(c.endswith((',"Sun"', ',"Mon"', ',"20"')) for c in forecast)
 
 
 async def test_visible_clock_ticks_without_entity_state_events():

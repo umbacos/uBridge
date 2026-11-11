@@ -184,7 +184,7 @@ Today's high and low appear with the current conditions when available.
 Standalone weather cards show up to five upcoming entries with weather icons,
 local days/hours and separate high and low temperatures. The compact weather card
 in the combined view fits up to three forecast columns below the current conditions.
-Entity temperature units are retained. Weather icons use the existing MDI picture
+Temperatures stay in the provider's scale and use the degree symbol. Weather icons use the MDI picture
 pack; no firmware resources or icon transfers are required.
 
 These are adapted native renderings of HA's built-in cards. Custom HACS clock/weather

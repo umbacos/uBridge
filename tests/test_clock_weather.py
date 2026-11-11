@@ -67,7 +67,10 @@ def test_four_card_view_fits_one_sheet_and_keeps_entity_hit_regions(analog):
     assert any(
         region.entity_id == "sensor.temp" and region.event == "detail" for region in screen.regions
     )
-    assert any("Next 19/10C" in command for command in screen.commands)
+    forecast = screen.blocks["item1-forecast"]
+    for label in ("Sun", "Mon", "Tue", "19C", "10C"):
+        assert any(command.endswith(f',"{label}"') for command in forecast)
+    assert not any(command.endswith(',"Wed"') for command in forecast)
     for key, commands in screen.blocks.items():
         if not key.startswith("item"):
             continue
@@ -119,6 +122,7 @@ def test_weather_forecast_options_missing_data_and_hidden_cards():
     first = render(
         current_pages, {"weather.home": WEATHER}, forecasts={("weather.home", "daily"): FORECAST}
     )
+    assert any(command.endswith(',"Thu"') for command in first.blocks["item0-forecast"])
     rainy = Entity("weather.home", "rainy", WEATHER.attributes)
     changed = render(
         current_pages, {"weather.home": rainy}, forecasts={("weather.home", "daily"): FORECAST}
@@ -146,7 +150,8 @@ def test_weather_forecast_options_missing_data_and_hidden_cards():
     )
     assert any('"13:00"' in command for command in screen.commands)
     assert not any("Sunny" in command for command in screen.commands)
-    assert any("19/10" in command for command in screen.commands)
+    for label in ("19C", "10C"):
+        assert any(command.endswith(f',"{label}"') for command in screen.commands)
     error = render(
         pages,
         {"weather.home": WEATHER},

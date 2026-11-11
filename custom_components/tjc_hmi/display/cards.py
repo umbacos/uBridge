@@ -58,10 +58,11 @@ def digit_width(text, scale):
     return sum(4 if c in ".:" else 8 for c in text) * scale
 
 
-def digits(screen, text, x, y, scale, fg, bg, key):
+def digits(screen, text, x, y, scale, fg, bg, key=None):
     for index, char in enumerate(text):
         width = (4 if char in ".:" else 8) * scale
-        screen.begin(f"{key}-digit{index}")
+        if key is not None:
+            screen.begin(f"{key}-digit{index}")
         screen.fill(x, y, width, 11 * scale, bg)
         if char in ".:":
             screen.fill(x + scale, y + 8 * scale, scale, scale, fg)
@@ -114,14 +115,32 @@ def clock_card(screen, item, x, y, w, h, now, zone, key):
     else:
         hour = now.hour % 12 or 12 if item.time_format == "12" else now.hour
         text = f"{hour:02d}:{now.minute:02d}"
-        scale = (
-            {"small": 4, "medium": 4, "large": 5}
-            if compact
-            else {"small": 5, "medium": 7, "large": 9}
-        ).get(item.clock_size, 4 if compact else 5)
-        digits(screen, text, x + (w - digit_width(text, scale)) // 2, y + 35, scale, TEXT, bg, key)
-        screen.begin(f"{key}-seconds")
         suffix = now.strftime("%p") if item.time_format == "12" else ""
+        sizes = (
+            {"small": 5, "medium": 6, "large": 7}
+            if compact
+            else {"small": 8, "medium": 10, "large": 12}
+        )
+        body_top = y + 28 + (22 if invalid_zone else 0)
+        body_bottom = y + h - 27
+        if not compact and (suffix or item.show_seconds):
+            body_bottom -= 22
+        scale = min(
+            sizes.get(item.clock_size, sizes["small"]),
+            (w - 12) // digit_width(text, 1),
+            (body_bottom - body_top) // 11,
+        )
+        digits(
+            screen,
+            text,
+            x + (w - digit_width(text, scale)) // 2,
+            body_top + (body_bottom - body_top - 11 * scale) // 2,
+            scale,
+            TEXT,
+            bg,
+            key,
+        )
+        screen.begin(f"{key}-seconds")
         if compact:
             text = (
                 now.strftime("%a %d %b")
@@ -129,22 +148,24 @@ def clock_card(screen, item, x, y, w, h, now, zone, key):
                 + (f" {suffix}" if suffix else "")
             )
             screen.text(x + 4, y + h - 27, w - 8, 24, text, MUTED, bg, 1)
-        else:
+        elif suffix or item.show_seconds:
             screen.text(
                 x + 20,
-                y + 137,
+                body_bottom,
                 w - 40,
-                24,
+                22,
                 f"{now.second:02d} sec {suffix}" if item.show_seconds else suffix,
                 ACCENT,
                 bg,
                 1,
             )
+        if not compact:
             screen.begin(f"{key}-date")
             screen.text(x + 10, y + h - 27, w - 20, 24, now.strftime("%A %d %B %Y"), MUTED, bg, 1)
     screen.begin(f"{key}-zone")
     if invalid_zone:
-        screen.text(x + 5, y + 28, w - 10, 22, "Unknown time zone; showing UTC", ERROR, bg, 1)
+        message = "Using UTC (bad zone)" if compact else "Unknown time zone; showing UTC"
+        screen.text(x + 5, y + 28, w - 10, 22, message, ERROR, bg, 1)
 
 
 def temperature(value, rounded=False):
@@ -160,115 +181,125 @@ def weather_card(screen, item, entity, forecast, x, y, w, h, zone, key):
     from .render import ACCENT, ERROR, MUTED, PANEL, TEXT
 
     screen.fill(x, y, w, h)
-    screen.begin(f"{key}-title")
-    screen.text(x + 10, y + 2, w - 20, 26, item.name or entity.label, ACCENT)
+    name = item.name or entity.label
     if not entity.available:
-        screen.text(x + 12, y + 70, w - 24, 30, "Weather unavailable", ERROR, align=1)
+        screen.text(x + 10, y + 2, w - 20, 26, name, ACCENT)
+        screen.text(x + 12, y + (h - 30) // 2, w - 24, 30, "Weather unavailable", ERROR, align=1)
         return
-    a = entity.attributes
-    unit = str(a.get("temperature_unit", ""))
-    rows = forecast.rows if forecast and not forecast.error else ()
-    if w < 400 and item.show_current:
-        screen.begin(f"{key}-condition")
-        screen.fill(x + 8, y + 30, 24, 24)
-        screen.icon(WEATHER_ICONS.get(entity.state, "weather-cloudy"), x + 8, y + 30, ACCENT)
-        screen.text(x + 38, y + 30, w - 44, 24, condition_label(entity.state))
-        value = temperature(a.get("temperature"), item.round_temperature)
-        digits(screen, value if len(value) <= 5 else "--", x + 12, y + 61, 3, TEXT, PANEL, key)
-        screen.begin(f"{key}-compact-info")
-        screen.text(x + 150, y + 52, w - 156, 22, unit, MUTED)
-        screen.text(x + 150, y + 75, w - 156, 22, f"{a.get('humidity', '--')}%", MUTED)
-        if item.show_forecast:
-            if rows:
-                row = rows[0]
-                high = temperature(row.get("temperature"), item.round_temperature)
-                low = temperature(row.get("templow"), item.round_temperature)
-                label = "Next hour" if item.forecast_type == "hourly" else "Next"
-                text = (
-                    f"{label} {high}/{low}{unit}"
-                    if row.get("templow") is not None
-                    else f"{label} {high}{unit}"
-                )
-            else:
-                text = "Forecast unavailable" if forecast else "Loading forecast..."
-            screen.text(x + 4, y + h - 27, w - 8, 24, text, MUTED, align=1)
-        return
+
+    attributes = entity.attributes
+    unit = str(attributes.get("temperature_unit") or "").replace("°", "").strip()
+    rows = forecast.rows if item.show_forecast and forecast and not forecast.error else ()
+    compact = w < 400
+    header_height = 42 if compact else 68
+    top = y + 28
     if item.show_current:
-        condition = condition_label(entity.state)
+        header_y = y if item.show_forecast else y + (h - header_height) // 2
+        split = x + w - (86 if compact else 192)
+        label_x = x + (32 if compact else 48)
+        padding = 5 if compact else 12
         screen.begin(f"{key}-condition")
-        screen.fill(x + 12, y + 35, 24, 24)
-        screen.icon(WEATHER_ICONS.get(entity.state, "weather-cloudy"), x + 12, y + 35, ACCENT)
-        screen.text(x + 45, y + 35, 215, 25, condition)
-        value = temperature(a.get("temperature"), item.round_temperature)
-        # Bound unusually long provider values to the temperature area.
-        value = value if len(value) <= 6 else "--"
-        digits(screen, value, x + 268, y + 31, 3, TEXT, PANEL, key)
+        screen.fill(x, header_y, split - x, header_height)
+        screen.icon(
+            WEATHER_ICONS.get(entity.state, "weather-cloudy"),
+            x + padding,
+            header_y + (header_height - 24) // 2,
+            ACCENT,
+        )
+        condition = condition_label(entity.state)
+        if compact:
+            condition = {
+                "partlycloudy": "Part cloudy",
+                "lightning-rainy": "T-storm",
+                "snowy-rainy": "Rain/snow",
+                "windy-variant": "Windy",
+            }.get(entity.state, condition)
+        screen.text(label_x, header_y + 1, split - label_x, 20 if compact else 36, condition)
+        info_y = header_y + (21 if compact else 43)
+        screen.text(label_x, info_y, split - label_x, 20, name, MUTED)
+
         screen.begin(f"{key}-current-info")
-        screen.text(x + 410, y + 40, 65, 26, unit)
+        right = x + w - padding
+        width = right - split
+        screen.fill(split, header_y, x + w - split, header_height)
+        value = temperature(attributes.get("temperature"), item.round_temperature)
+        if compact:
+            screen.text(split, header_y + 1, width, 20, value + unit, align=2)
+        else:
+            unit_width = 10 * min(len(unit), 4)
+            value = value if digit_width(value, 3) <= width - unit_width else "--"
+            digits(
+                screen,
+                value,
+                right - unit_width - digit_width(value, 3),
+                header_y + 5,
+                3,
+                TEXT,
+                PANEL,
+            )
+            if unit_width:
+                screen.text(right - unit_width, header_y + 5, unit_width, 33, unit, align=2)
+
         secondary = item.secondary_info
         if not secondary:
-            secondary = "extrema" if rows and rows[0].get("templow") is not None else "humidity"
-        if secondary == "extrema" and rows:
-            high = temperature(rows[0].get("temperature"), item.round_temperature)
-            low = temperature(rows[0].get("templow"), item.round_temperature)
-            info = f"High {high} / Low {low} {unit}"
+            secondary = (
+                "extrema" if rows and numeric(rows[0].get("templow")) is not None else "humidity"
+            )
+        if secondary == "extrema":
+            info = ""
+            if rows and numeric(rows[0].get("templow")) is not None:
+                high = temperature(rows[0].get("temperature"), item.round_temperature)
+                low = temperature(rows[0].get("templow"), item.round_temperature)
+                info = f"{high}/{low}" if compact else f"{high} / {low} {unit}"
         else:
             units = {
                 "humidity": "%",
-                "wind_speed": a.get("wind_speed_unit", ""),
-                "pressure": a.get("pressure_unit", ""),
-                "visibility": a.get("visibility_unit", ""),
-                "precipitation": a.get("precipitation_unit", ""),
+                "wind_speed": attributes.get("wind_speed_unit", ""),
+                "pressure": attributes.get("pressure_unit", ""),
+                "visibility": attributes.get("visibility_unit", ""),
+                "precipitation": attributes.get("precipitation_unit", ""),
             }
-            info = (
-                f"{secondary.replace('_', ' ').capitalize()} "
-                f"{a.get(secondary, '--')} {units.get(secondary, '')}"
-            )
-        screen.text(x + 12, y + 73, w - 24, 24, info, MUTED)
+            info = f"{attributes.get(secondary, '--')} {units.get(secondary, '')}".strip()
+            if not compact:
+                info = f"{secondary.replace('_', ' ').capitalize()} {info}"
+        if info:
+            screen.text(split, info_y, width, 20, info, MUTED, align=2)
+        top = y + header_height
+    else:
+        screen.text(x + 10, y + 2, w - 20, 26, name, ACCENT)
+
     if not item.show_forecast:
         return
     screen.begin(f"{key}-forecast")
-    top = y + (104 if item.show_current else 29 if w < 400 else 53)
-    screen.fill(x, top, w, y + h - top)
+    height = y + h - top
+    screen.fill(x, top, w, height)
     if not rows:
-        screen.text(
-            x + 12,
-            y + min(123, h - 34),
-            w - 24,
-            30,
-            (forecast.error if forecast and forecast.error else "No forecast data")
-            if forecast
-            else "Loading forecast...",
-            MUTED,
-            align=1,
-        )
+        message = (forecast.error or "No forecast data") if forecast else "Loading forecast..."
+        screen.text(x + 4, top + (height - 20) // 2, w - 8, 20, message, MUTED, align=1)
         return
-    columns = 3 if w < 400 else 5
-    width = w // columns
+
+    # A compact card has room for three columns, including separate high and low rows.
+    columns = min(len(rows), 3 if compact else 5)
+    top += (height - 84) // 2
     for index, row in enumerate(rows[:columns]):
-        left = x + index * width
+        left = x + index * w // columns
+        width = x + (index + 1) * w // columns - left
         try:
             when, _ = local_time(datetime.fromisoformat(str(row.get("datetime", ""))), zone)
-            label = when.strftime("%H:%M" if item.forecast_type == "hourly" else "%a %d")
+            label = when.strftime("%H:%M" if item.forecast_type == "hourly" else "%a")
             if item.forecast_type == "twice_daily":
-                label = when.strftime("%a") + (" day" if row.get("is_daytime", True) else " night")
+                label += " day" if row.get("is_daytime", True) else " night"
         except (ValueError, TypeError):
             label = "--"
-        screen.text(left + 2, top, width - 4, 22, label, MUTED, align=1)
+        screen.text(left, top, width, 20, label, MUTED, align=1)
         screen.icon(
             WEATHER_ICONS.get(row.get("condition"), "weather-cloudy"),
             left + (width - 24) // 2,
-            top + 24,
+            top + 20,
             ACCENT,
         )
         high = temperature(row.get("temperature"), item.round_temperature)
-        low = temperature(row.get("templow"), item.round_temperature)
-        screen.text(
-            left + 2,
-            top + 51,
-            width - 4,
-            27,
-            f"{high}/{low}" if row.get("templow") is not None else f"{high}{unit}",
-            TEXT,
-            align=1,
-        )
+        screen.text(left, top + 44, width, 20, high + unit if high != "--" else high, align=1)
+        if numeric(row.get("templow")) is not None:
+            low = temperature(row.get("templow"), item.round_temperature)
+            screen.text(left, top + 64, width, 20, low + unit, MUTED, align=1)

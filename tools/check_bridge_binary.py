@@ -180,7 +180,7 @@ async def check(executable):
             )
             mixed_start = len(commands)
             await ha.event("panels_updated", {})
-            await eventually(lambda: any("Next 19/10C" in c for c in commands[mixed_start:]))
+            await eventually(lambda: any(c.endswith(',"19C"') for c in commands[mixed_start:]))
             assert not any("Items 1/1" in c for c in commands[mixed_start:])
             tick_start = len(commands)
             await eventually(

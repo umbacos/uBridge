@@ -180,9 +180,8 @@ configured idle dashboard. The provider must support the requested forecast type
 Missing forecasts show a message while current weather remains usable.
 
 Standalone weather cards show up to five upcoming entries with weather icons,
-local dates/hours and high/low temperatures. In the combined view the compact
-weather card shows current conditions, temperature, humidity and the next forecast
-summary. Hiding current conditions makes room for three compact forecast columns.
+local days/hours and separate high and low temperatures. The compact weather card
+in the combined view fits up to three forecast columns below the current conditions.
 Entity temperature units are retained. Weather icons use the existing MDI picture
 pack; no firmware resources or icon transfers are required.
 

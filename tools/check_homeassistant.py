@@ -231,7 +231,7 @@ async def main():
             await asyncio.sleep(0.15)
             assert forecast_calls[0]["type"] == "daily"
             assert runtime.controller.time_zone == "Europe/Rome"
-            assert any("Next 19/10C" in c for draw in panel.frames for c in draw)
+            assert any(c.endswith(',"19C"') for draw in panel.frames for c in draw)
             assert runtime.controller.dashboard_count == 1
             assert not any(
                 r.event in {"previous", "next", "sheet"} for r in runtime.controller._screen.regions

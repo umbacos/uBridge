@@ -23,12 +23,17 @@ def atlas():
 
 
 def icon_commands(
-    name: str, x: int, y: int, color: int, *, background=6371, native=False
+    name: str, x: int, y: int, color: int, *, background=6371, native=False, size=24
 ) -> list[str]:
     name = str(name).removeprefix("mdi:")
     if name not in masks():
         name = "help-circle-outline"
-    if native and name in atlas()["positions"] and [color, background] in atlas()["palettes"]:
+    if (
+        size == 24
+        and native
+        and name in atlas()["positions"]
+        and [color, background] in atlas()["palettes"]
+    ):
         pack = atlas()
         index = pack["positions"][name]
         sheet, slot = divmod(index, pack["per_sheet"])
@@ -37,7 +42,14 @@ def icon_commands(
         sx, sy = slot % pack["columns"] * 24, slot // pack["columns"] * 24
         return [f"xpic {x},{y},24,24,{sx},{sy},{picture_id}"]
     shapes = masks()[name]
-    return [f"fill {x + dx},{y + dy},{w},{h},{color}" for dx, dy, w, h in shapes]
+    if size == 24:
+        return [f"fill {x + dx},{y + dy},{w},{h},{color}" for dx, dy, w, h in shapes]
+    commands = []
+    for dx, dy, w, h in shapes:
+        left, top = dx * size // 24, dy * size // 24
+        right, bottom = (dx + w) * size // 24, (dy + h) * size // 24
+        commands.append(f"fill {x + left},{y + top},{right - left},{bottom - top},{color}")
+    return commands
 
 
 def entity_icon(entity: Entity, override: str | None = None) -> str:

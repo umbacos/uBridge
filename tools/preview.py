@@ -5,6 +5,7 @@ import asyncio
 import json
 import math
 import time
+from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from core_loader import load_core
@@ -154,12 +155,12 @@ async def main(port):
     controller.forecasts[("weather.forecast_home", "daily")] = Forecast(
         tuple(
             {
-                "datetime": f"2026-11-{8 + i:02d}T12:00:00+00:00",
+                "datetime": (datetime.now(UTC) + timedelta(days=i)).isoformat(),
                 "condition": "sunny",
                 "temperature": 19 + i,
                 "templow": 10 + i,
             }
-            for i in range(5)
+            for i in range(6)
         )
     )
     end = time.time()

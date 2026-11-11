@@ -3,6 +3,7 @@
 import asyncio
 from contextlib import asynccontextmanager, suppress
 from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from aiohttp import web
@@ -602,7 +603,7 @@ async def test_weather_response_api_and_live_combined_clock_weather_view():
             "weather.home": {
                 "forecast": [
                     {
-                        "datetime": "2026-11-08T12:00:00+00:00",
+                        "datetime": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
                         "condition": "rainy",
                         "temperature": 19,
                         "templow": 10,

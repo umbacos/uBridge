@@ -7,6 +7,7 @@ personal HA instance, open a physical serial port, or operate real devices.
 import asyncio
 import sys
 import tempfile
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -195,7 +196,7 @@ async def main():
                     "weather.home": {
                         "forecast": [
                             {
-                                "datetime": "2026-11-08T12:00:00+00:00",
+                                "datetime": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
                                 "condition": "sunny",
                                 "temperature": 19,
                                 "templow": 10,

@@ -5,7 +5,7 @@ import asyncio
 import importlib.util
 import json
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -154,7 +154,7 @@ async def check(executable):
                 "weather.home": {
                     "forecast": [
                         {
-                            "datetime": "2026-11-08T12:00:00+00:00",
+                            "datetime": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
                             "condition": "sunny",
                             "temperature": 19,
                             "templow": 10,

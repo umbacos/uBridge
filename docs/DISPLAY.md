@@ -179,6 +179,8 @@ Forecasts are retrieved separately through HA's response-bearing
 configured idle dashboard. The provider must support the requested forecast type.
 Missing forecasts show a message while current weather remains usable.
 
+Daily and twice-daily forecasts start tomorrow in Home Assistant's time zone.
+Today's high and low appear with the current conditions when available.
 Standalone weather cards show up to five upcoming entries with weather icons,
 local days/hours and separate high and low temperatures. The compact weather card
 in the combined view fits up to three forecast columns below the current conditions.

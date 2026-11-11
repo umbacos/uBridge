@@ -2,7 +2,7 @@
 
 import math
 from dataclasses import dataclass, field, replace
-from datetime import datetime
+from datetime import UTC, datetime
 
 from .actions import Action, controls, default_action, explicit_action
 from .cards import clock_card, weather_card
@@ -66,9 +66,9 @@ class Screen:
     def line(self, x1, y1, x2, y2, color=MUTED):
         self.commands.append(f"line {round(x1)},{round(y1)},{round(x2)},{round(y2)},{color}")
 
-    def icon(self, name, x, y, color=TEXT, bg=PANEL):
+    def icon(self, name, x, y, color=TEXT, bg=PANEL, *, size=24):
         self.commands.extend(
-            icon_commands(name, x, y, color, background=bg, native=self.native_icons)
+            icon_commands(name, x, y, color, background=bg, native=self.native_icons, size=size)
         )
 
     def text(self, x, y, w, h, text, fg=TEXT, bg=PANEL, align=0):
@@ -451,19 +451,16 @@ def render(
     page = pages[page_index % len(pages)]
     packed = sheets(page.items, navigation=show_navigation)
     sheet %= len(packed)
+    now = now or datetime.now(UTC)
     for index, item, x, y, w, h in packed[sheet]:
         entity = entities.get(item.entity_id, Entity(item.entity_id, "unavailable"))
         screen.begin(f"item{index}-base")
         if item.kind == "clock":
-            from datetime import UTC
-
-            clock_card(
-                screen, item, x, y, w, h, now or datetime.now(UTC), time_zone, f"item{index}"
-            )
+            clock_card(screen, item, x, y, w, h, now, time_zone, f"item{index}")
             continue
         if item.kind == "weather-forecast":
             forecast = (forecasts or {}).get((item.entity_id, item.forecast_type))
-            weather_card(screen, item, entity, forecast, x, y, w, h, time_zone, f"item{index}")
+            weather_card(screen, item, entity, forecast, x, y, w, h, now, time_zone, f"item{index}")
             action = explicit_action(item)
             if action and entity.available:
                 screen.regions.append(Region(x, y, w, h, "action", action, entity.entity_id))

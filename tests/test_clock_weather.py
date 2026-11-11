@@ -32,7 +32,7 @@ FORECAST = Forecast(
             "temperature": 19 + i,
             "templow": 10 + i,
         }
-        for i in range(5)
+        for i in range(6)
     )
 )
 NOW = datetime(2026, 11, 8, 10, 12, 30, tzinfo=UTC)
@@ -68,9 +68,11 @@ def test_four_card_view_fits_one_sheet_and_keeps_entity_hit_regions(analog):
         region.entity_id == "sensor.temp" and region.event == "detail" for region in screen.regions
     )
     forecast = screen.blocks["item1-forecast"]
-    for label in ("Sun", "Mon", "Tue", "19C", "10C"):
+    for label in ("Mon", "Tue", "Wed", "20C", "11C"):
         assert any(command.endswith(f',"{label}"') for command in forecast)
-    assert not any(command.endswith(',"Wed"') for command in forecast)
+    assert not any(command.endswith((',"Sun"', ',"Thu"')) for command in forecast)
+    assert any(c.endswith(',"19/10"') for c in screen.blocks["item1-current-info"])
+    assert not any("Home weather" in c for c in screen.commands)
     for key, commands in screen.blocks.items():
         if not key.startswith("item"):
             continue
@@ -120,12 +122,18 @@ def test_clock_without_seconds_does_not_send_commands_until_minute_changes():
 def test_weather_forecast_options_missing_data_and_hidden_cards():
     current_pages = dashboard([{"type": "weather-forecast", "entity": "weather.home"}])
     first = render(
-        current_pages, {"weather.home": WEATHER}, forecasts={("weather.home", "daily"): FORECAST}
+        current_pages,
+        {"weather.home": WEATHER},
+        now=NOW,
+        forecasts={("weather.home", "daily"): FORECAST},
     )
-    assert any(command.endswith(',"Thu"') for command in first.blocks["item0-forecast"])
+    assert any(command.endswith(',"Fri"') for command in first.blocks["item0-forecast"])
     rainy = Entity("weather.home", "rainy", WEATHER.attributes)
     changed = render(
-        current_pages, {"weather.home": rainy}, forecasts={("weather.home", "daily"): FORECAST}
+        current_pages,
+        {"weather.home": rainy},
+        now=NOW,
+        forecasts={("weather.home", "daily"): FORECAST},
     )
     delta = changed.changed_commands(first)
     assert delta and not any(c.startswith("cls") or c == "fill 0,39,480,189,6371" for c in delta)
@@ -179,6 +187,23 @@ def test_weather_forecast_options_missing_data_and_hidden_cards():
         {"weather.home": {"forecast": [None, FORECAST.rows[0]]}}, "weather.home"
     ).rows == (FORECAST.rows[0],)
     assert decode_forecast(None, "weather.home").error
+
+
+def test_daily_forecast_uses_local_tomorrow_and_never_uses_future_extrema_in_header():
+    pages = dashboard([{"type": "weather-forecast", "entity": "weather.home"}])
+    now = datetime(2026, 11, 8, 23, 30, tzinfo=UTC)  # Monday in Rome.
+    for rows, expected_info in [(FORECAST.rows, "20 / 11 C"), (FORECAST.rows[2:], "Humidity 64 %")]:
+        screen = render(
+            pages,
+            {"weather.home": WEATHER},
+            now=now,
+            time_zone="Europe/Rome",
+            forecasts={("weather.home", "daily"): Forecast(rows)},
+        )
+        assert any(c.endswith(f',"{expected_info}"') for c in screen.blocks["item0-current-info"])
+        forecast = screen.blocks["item0-forecast"]
+        assert any(c.endswith(',"Tue"') for c in forecast)
+        assert not any(c.endswith((',"Sun"', ',"Mon"', ',"20C"')) for c in forecast)
 
 
 async def test_visible_clock_ticks_without_entity_state_events():

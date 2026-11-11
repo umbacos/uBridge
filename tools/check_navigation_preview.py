@@ -1,6 +1,7 @@
 """Render the single-dashboard and idle layouts in an isolated mock browser preview."""
 
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import yaml
@@ -36,7 +37,7 @@ def main():
         ("weather.forecast_home", "daily"): Forecast(
             (
                 {
-                    "datetime": "2026-11-08T12:00:00+00:00",
+                    "datetime": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
                     "condition": "sunny",
                     "temperature": 19,
                     "templow": 10,
